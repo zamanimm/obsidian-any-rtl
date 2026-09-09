@@ -1,6 +1,5 @@
 # Any-RTL Support for Obsidian
 
-
 **Any-RTL** is an Obsidian plugin focused on practical right-to-left (RTL) support for mixed Persian, Arabic, Hebrew, and English notes.
 
 The plugin combines the document-level direction controls of **RTL Support** with the content-aware, per-line/per-block direction handling of **Content RTL**, while adding a more useful `Any-RTL` detection mode for mixed-language text.
@@ -70,8 +69,8 @@ Any-RTL is especially useful for notes containing a mixture of Persian/Arabic an
 * Lists containing both RTL and LTR content
 * Notes with code, mathematics, and technical notation alongside RTL prose
 
-
 > [!example]
+>
 > <div dir='rtl'>سید علی</div>
 > <div dir='rtl'>سید ali</div>
 > <div dir='rtl'>seyed علی</div>
@@ -156,16 +155,39 @@ The goal is to keep Obsidian UI elements, raw frontmatter, code, and other inher
 
 ## 📦 Installation
 
-### Manual Installation
+### 🧩 Install with BRAT — Recommended
 
-1. Download the latest release files from the **Releases** page.
+The easiest way to install **Any-RTL Support** is through [BRAT (Beta Reviewer's Auto-update Tool)](https://github.com/TfTHacker/obsidian42-brat).
+
+1. Install **BRAT** from the Obsidian Community Plugins.
+
+2. Open **Settings → BRAT → Add Beta Plugin**.
+
+3. Enter this repository URL:
+
+```text
+https://github.com/zamanimm/obsidian-any-rtl
+```
+
+4. Add the plugin and wait for BRAT to download it.
+
+5. Open **Settings → Community plugins**.
+
+6. Enable **Any-RTL Support**.
+
+BRAT can also keep the plugin updated automatically when new versions are released.
+
+### 📥 Manual Installation
+
+1. Download the latest release from the **Releases** page.
+
 2. Create the plugin folder:
 
 ```text
 <Vault>/.obsidian/plugins/any-rtl/
 ```
 
-3. Copy the following files into that folder:
+3. Copy these files into the folder:
 
 ```text
 main.js
@@ -174,6 +196,7 @@ styles.css
 ```
 
 4. Restart or reload Obsidian.
+
 5. Open **Settings → Community plugins** and enable **Any-RTL Support**.
 
 ---
@@ -182,21 +205,9 @@ styles.css
 
 This project was built by combining ideas and implementation approaches from two excellent Obsidian plugins:
 
-### Content RTL
+- **[Content RTL](https://github.com/SirwanAfifi/content-rtl)** focuses on automatic content-only direction detection, including per-line behavior in Editing/Live Preview and per-block behavior in Reading Mode.
 
-**Content RTL** focuses on automatic content-only direction detection, including per-line behavior in Editing/Live Preview and per-block behavior in Reading Mode.
-
-Repository:
-
-https://github.com/SirwanAfifi/content-rtl
-
-### RTL Support
-
-**RTL Support** extends Obsidian's RTL handling with document-level direction controls, per-file direction, frontmatter-based direction, and related editor behavior.
-
-Repository:
-
-https://github.com/esm7/obsidian-rtl
+- **[RTL Support](https://github.com/esm7/obsidian-rtl)** extends Obsidian's RTL handling with document-level direction controls, per-file direction, frontmatter-based direction, and related editor behavior.
 
 A big thank-you to the authors and contributors of both projects for the groundwork that made this project possible.
 
