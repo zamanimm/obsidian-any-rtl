@@ -70,7 +70,6 @@ Any-RTL is especially useful for notes containing a mixture of Persian/Arabic an
 * Notes with code, mathematics, and technical notation alongside RTL prose
 
 > [!EXAMPLE]
->
 > <div dir='rtl'>سید علی</div>
 > <div dir='rtl'>سید ali</div>
 > <div dir='rtl'>seyed علی</div>
