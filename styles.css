@@ -273,3 +273,30 @@
 	direction: ltr;
 	unicode-bidi: isolate;
 }
+
+/* Blockquote RTL fix for Reading and Editing modes */
+.is-rtl blockquote,
+.is-any-rtl blockquote,
+[dir="rtl"] blockquote,
+blockquote[dir="rtl"],
+blockquote.anyrtl-content-rtl {
+    direction: rtl !important;
+    text-align: right !important;
+    
+    /* Remove left border and apply right border */
+    border-left-width: 0 !important;
+    border-right-width: 2px !important;
+    border-left-style: none !important;
+    border-right-style: solid !important;
+    border-right-color: var(--blockquote-border-color, var(--interactive-accent)) !important;
+    
+    /* Add space between text and the right border (indentation) */
+    padding-inline-start: 30px !important; /* Space from the right border for RTL */
+    padding-inline-end: 0 !important;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    
+    /* Reset margins */
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0 !important;
+}
