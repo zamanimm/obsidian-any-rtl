@@ -1,16 +1,3 @@
-exclude tables, code fenced, callouts
-discription
-manifest link
-per-line and per-block for editing mode
-per file and yaml dependent
-yaml realtime action
-status bar enable after seting
-
-
-readme:
-
----
-
 # Any-RTL
 > Smart RTL support for mixed-language notes in Obsidian.
 
