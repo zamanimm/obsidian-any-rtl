@@ -1,0 +1,13 @@
+{
+  "fileDirections": {
+    "any-rtl-develope/AnyRTL-Test.md": "rtl",
+    "any-rtl-develope/any-rtl-develope.md": "auto",
+    "Excalidraw/Untitled.md": "ltr",
+    "ai-application-engineer-roadmap-2025 1.md": "any-rtl"
+  },
+  "defaultDirection": "any-rtl",
+  "rememberPerFile": false,
+  "setNoteTitleDirection": false,
+  "preventRTLFrontmatter": true,
+  "statusBar": true
+}
