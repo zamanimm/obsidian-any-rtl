@@ -178,6 +178,7 @@ var ANY_RTL_CLASS = "is-any-rtl";
 var READING_BLOCK_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,dt,dd,th,td,summary,figcaption,blockquote,.callout-title,.callout-title-inner";
 var READING_EMBED_SELECTOR = ".markdown-embed,.internal-embed";
 var EXCLUDED_READING_CONTAINER_SELECTOR = "pre,.math,.metadata-container,.mod-header,.mod-footer";
+var ANY_RTL_EXCLUDED_SELECTOR = ".block-language-dataview,.block-language-dataviewjs,.dataview,.block-language-base,.bases-embed,.bases-view";
 var CONTENT_RTL_CLASS = "anyrtl-content-rtl";
 var CONTENT_LTR_CLASS = "anyrtl-content-ltr";
 var RTL_SCRIPT_PATTERN = /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}\p{Script=Samaritan}\p{Script=Mandaic}]/u;
@@ -252,17 +253,18 @@ function getDirectionalText(block) {
   function text(node) {
     if (node.nodeType === 3) return node.nodeValue || "";
     if (node.nodeType !== 1) return "";
-    if (node.matches("pre,ul,ol," + READING_EMBED_SELECTOR)) return "";
+    if (node.matches("pre,ul,ol," + READING_EMBED_SELECTOR + "," + ANY_RTL_EXCLUDED_SELECTOR)) return "";
     return Array.from(node.childNodes).map(text).join("");
   }
   return Array.from(block.childNodes).map(text).join("");
 }
-function protectReadingCode(root) {
+function protectReadingCode(root, excludeDynamicViews = false) {
   const sourceEmbed = root.closest(READING_EMBED_SELECTOR);
   const elements = root.matches("pre,pre code") ? [root] : [];
   elements.push(...root.querySelectorAll("pre,pre code"));
   for (const element of elements) {
     if (element.closest(READING_EMBED_SELECTOR) !== sourceEmbed) continue;
+    if (excludeDynamicViews && element.closest(ANY_RTL_EXCLUDED_SELECTOR)) continue;
     rememberDirectionState(element);
     element.classList.remove("anyrtl-yaml-rtl", CONTENT_RTL_CLASS, CONTENT_LTR_CLASS);
     element.setAttribute("dir", "ltr");
@@ -274,9 +276,10 @@ function markReadingBlockDirections(root, forcedDirection = null) {
   clearReadingBlockDirections(root);
   for (const block of getReadingBlocks(root)) {
     if (block.closest(EXCLUDED_READING_CONTAINER_SELECTOR)) continue;
+    if (forcedDirection === null && block.closest(ANY_RTL_EXCLUDED_SELECTOR)) continue;
     setContentDirection(block, forcedDirection || detectContentDirection(getDirectionalText(block)));
   }
-  protectReadingCode(root);
+  protectReadingCode(root, forcedDirection === null);
 }
 function clearReadingBlockDirections(root) {
   const sourceEmbed = root.closest(READING_EMBED_SELECTOR);
@@ -524,7 +527,7 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
       const mode = NOTE_VIEW_DIRECTIONS.get(view) ||
         this.getRequiredFileDirection(view.file)[0];
 
-      protectReadingCode(root);
+      protectReadingCode(root, mode === "any-rtl");
       const sourceEmbed = root.closest(READING_EMBED_SELECTOR);
 
       for (const title of root.querySelectorAll(
@@ -534,7 +537,8 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
           title.closest(READING_EMBED_SELECTOR) !== sourceEmbed
         ) continue;
 
-        if (mode === "auto") {
+        if (mode === "auto" ||
+            (mode === "any-rtl" && title.closest(ANY_RTL_EXCLUDED_SELECTOR))) {
           clearContentDirection(title);
           continue;
         }

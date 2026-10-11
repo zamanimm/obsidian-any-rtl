@@ -78,3 +78,12 @@
   direction: ltr !important;
   text-align: left !important;
 }
+/* Keep rendered math LTR inside RTL editor lines. */
+.markdown-source-view.mod-cm6 :is(
+  .math,
+  .MathJax,
+  mjx-container
+) {
+  direction: ltr !important;
+  unicode-bidi: isolate;
+}
