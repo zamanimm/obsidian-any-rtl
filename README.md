@@ -27,7 +27,7 @@ For the current development version:
 3. Add `https://github.com/zamanimm/obsidian-Any RTL`
 4. Install and enable **Any RTL**.
 ### 🛠️ Manual Installation
-1. Download the latest release from [GitHub Releases](https://github.com/zamanimm/obsidian-Any RTL/releases).
+1. Download the latest release from [GitHub Releases](https://github.com/zamanimm/obsidian-any-rtl/releases).
 2. Create the plugin folder:
 
 ```text
