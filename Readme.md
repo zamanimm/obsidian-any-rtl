@@ -16,11 +16,7 @@
 ---
 ## 📦 Installation
 ### 🌐 Community Plugins
-%%> [!NOTE]
-> **Any RTL is not yet available in the official Obsidian Community Plugins directory.**
-> Community Plugin installation will be available after the plugin is officially approved.
 
-Once available:%%
 1. Open **Settings → Community plugins → Browse**.
 2. Search for **Any RTL**.
 3. Click **Install**, then **Enable**.
