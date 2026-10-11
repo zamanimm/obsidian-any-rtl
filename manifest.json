@@ -3,7 +3,7 @@
   "name": "Any-RTL",
   "version": "1.2.0",
   "minAppVersion": "1.6.2",
-  "description": "Smart RTL support for mixed-language Obsidian notes.",
+  "description": "Smart RTL support for mixed-language notes.",
   "author": "Zamanimm",
   "authorUrl": "https://github.com/zamanimm/",
   "isDesktopOnly": false
