@@ -101,6 +101,43 @@ function getCodeBlockRanges(state) {
 }
 
 
+// Resolve directionless lines from the nearest unprotected text block.
+// Prefer preceding content; leading blank runs inherit the following content.
+function getContextualBlankDirections(state, codeRanges, frontmatterRange) {
+  const directions = new Map();
+  const pending = [];
+  const doc = state.doc;
+  let previous = null;
+  let rangeIndex = 0;
+
+  for (let number = 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    while (rangeIndex < codeRanges.length && codeRanges[rangeIndex].to < line.from) {
+      rangeIndex++;
+    }
+    const protectedCode = rangeIndex < codeRanges.length &&
+      codeRanges[rangeIndex].from <= line.from;
+    const protectedYaml = frontmatterRange && line.from <= frontmatterRange.to;
+    if (protectedCode || protectedYaml) {
+      previous = null;
+      pending.length = 0;
+      continue;
+    }
+
+    // Whitespace and empty Markdown quote markers have no direction of their own.
+    if (/^\s*(?:>\s*)*$/.test(line.text)) {
+      if (previous) directions.set(number, previous);
+      else pending.push(number);
+      continue;
+    }
+
+    const direction = RTL_SCRIPT_PATTERN.test(line.text) ? "rtl" : "ltr";
+    for (const pendingLine of pending) directions.set(pendingLine, direction);
+    pending.length = 0;
+    previous = direction;
+  }
+  return directions;
+}
 function getEditorPlugin(rtlPlugin) {
   return import_view.ViewPlugin.fromClass(class {
     constructor(view) {
@@ -141,6 +178,9 @@ function getEditorPlugin(rtlPlugin) {
       if (this.rtlPlugin.settings.preventRTLFrontmatter && this.checkFrontmatter(state)) {
         this.getFrontmatterRange(state);
       }
+      this.contextualBlankDirections = this.direction === "any-rtl"
+        ? getContextualBlankDirections(state, this.codeBlockRanges, this.frontmatterRange)
+        : null;
     }
     buildDecorations(view) {
       const builder = new import_state.RangeSetBuilder();
@@ -168,7 +208,10 @@ function getEditorPlugin(rtlPlugin) {
         if (protectedCode || protectedYaml || this.direction === "ltr") decoration = this.ltrDec;
         else if (this.direction === "rtl") decoration = this.rtlDec;
         else if (this.direction === "any-rtl") {
-          decoration = this.containsRTLCharacter(line.text) ? this.rtlDec : this.ltrDec;
+          const contextDirection = this.contextualBlankDirections?.get(line.number);
+          decoration = (contextDirection ||
+            (this.containsRTLCharacter(line.text) ? "rtl" : "ltr")) === "rtl"
+            ? this.rtlDec : this.ltrDec;
         }
         builder.add(line.from, line.from, decoration);
         pos = line.to + 1;
@@ -284,7 +327,7 @@ function getDirectionalText(block) {
   function text(node) {
     if (node.nodeType === 3) return node.nodeValue || "";
     if (node.nodeType !== 1) return "";
-    if (node.matches("pre,ul,ol," + READING_EMBED_SELECTOR + "," + ANY_RTL_EXCLUDED_SELECTOR)) return "";
+    if (node.matches("pre,ul,ol,blockquote," + READING_EMBED_SELECTOR + "," + ANY_RTL_EXCLUDED_SELECTOR)) return "";
     return Array.from(node.childNodes).map(text).join("");
   }
   return Array.from(block.childNodes).map(text).join("");
@@ -305,11 +348,33 @@ function protectReadingCode(root, excludeDynamicViews = false) {
 }
 function markReadingBlockDirections(root, forcedDirection = null) {
   clearReadingBlockDirections(root);
-  for (const block of getReadingBlocks(root)) {
-    if (block.closest(EXCLUDED_READING_CONTAINER_SELECTOR)) continue;
+  const blocks = getReadingBlocks(root);
+  const quoteDirections = new Map();
+
+  for (const block of blocks) {
+    if (block.matches("blockquote") ||
+        block.closest(EXCLUDED_READING_CONTAINER_SELECTOR)) continue;
     if (forcedDirection === null && block.closest(ANY_RTL_EXCLUDED_SELECTOR)) continue;
-    setContentDirection(block, forcedDirection || detectContentDirection(getDirectionalText(block)));
+
+    const text = getDirectionalText(block);
+    const direction = forcedDirection || detectContentDirection(text);
+    setContentDirection(block, direction);
+
+    // A quote's border follows its first nonempty direct text block.
+    // Nested blockquotes cannot determine their parent's direction.
+    if (forcedDirection === null && text.trim()) {
+      const quote = block.closest("blockquote");
+      if (quote && !quoteDirections.has(quote)) quoteDirections.set(quote, direction);
+    }
   }
+
+  for (const block of blocks) {
+    if (!block.matches("blockquote") ||
+        block.closest(EXCLUDED_READING_CONTAINER_SELECTOR)) continue;
+    if (forcedDirection === null && block.closest(ANY_RTL_EXCLUDED_SELECTOR)) continue;
+    setContentDirection(block, forcedDirection || quoteDirections.get(block) || "ltr");
+  }
+
   protectReadingCode(root, forcedDirection === null);
 }
 function clearReadingBlockDirections(root) {

@@ -5,13 +5,13 @@
 ## ✨ Features
 - 🔄 **Multiple direction modes**
     - **Auto** — follow Obsidian's automatic direction detection.
-    - **Any-RTL** — use RTL when a line contains any RTL character; otherwise use LTR.
+    - **Any-RTL** — use RTL when a rendered text block contains any RTL character; otherwise use LTR.
     - **LTR / RTL** — force a specific direction.
 - 📄 **Per-file direction** — remember the selected direction for individual notes.
 - 🏷️ **Frontmatter support** — control a note's direction directly from YAML frontmatter.
 - 📝 **Mixed-language content** — handle Persian, Arabic, Hebrew, English, and other RTL/LTR content within the same note.
 - 👁️ **Reading Mode support** — apply direction handling to rendered notes.
-- 📏 **Flexible detection** — choose between per-line and per-block direction handling.
+- 📏 **Per-block direction** — independently detect rendered paragraphs, list items, and blockquotes (including nested quotes).
 
 ---
 ## 📦 Installation
@@ -55,11 +55,11 @@ styles.css
 | **Auto**    | Depends on the first strong directional character |   Depends on the first strong directional character   | Follow Obsidian’s automatic direction detection |
 | **Any-RTL** |                      **RTL**                      | **Depends on the first strong directional character** | RTL if **any RTL character** is present         |
 
-* Based on Obsidian's built-in direction detection.
+* Auto uses Obsidian's automatic detection; Any-RTL checks each rendered text block.
 
 ---
 ## 🔍 Any RTL Detection
-A line is treated as RTL if it contains **at least one RTL character**:
+A rendered text block is treated as RTL if it contains **at least one RTL character**:
 > 📝 Example
 > ---
 > 
@@ -68,7 +68,7 @@ A line is treated as RTL if it contains **at least one RTL character**:
 > <div dir="rtl">seyed علی</div>
 > <div dir="ltr">seyed ali</div>
 
-This is particularly useful for mixed-language content where RTL and LTR text appear in the same line.
+This is particularly useful for mixed-language content where RTL and LTR text appear in the same paragraph, list item, or quote.
 
 ---
 ## 📝 Per-Note Direction
@@ -112,7 +112,7 @@ Also remove any `direction` property from the note’s frontmatter.
 ## ⚙️ Settings
 Configure Any RTL from:
 **Settings → Any RTL**
-Available options include direction mode, detection behavior, per-file direction, and Reading Mode handling.
+Available options include default direction, per-file memory, note title direction, YAML protection, and the status bar.
 
 ---
 ## 🙏 Credits
