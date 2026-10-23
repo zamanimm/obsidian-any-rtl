@@ -1,7 +1,7 @@
 {
   "id": "any-rtl",
   "name": "Any-RTL",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "minAppVersion": "1.6.2",
   "description": "Smart RTL support for mixed-language notes.",
   "author": "Zamanimm",
