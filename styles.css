@@ -107,3 +107,15 @@
   direction: ltr !important;
   unicode-bidi: isolate;
 }
+/* Keep inactive Live Preview table cells aligned with their own content. */
+.markdown-source-view.mod-cm6 .cm-table-widget .table-cell-wrapper.anyrtl-content-rtl {
+  direction: rtl !important;
+  text-align: start !important;
+  unicode-bidi: normal;
+}
+
+.markdown-source-view.mod-cm6 .cm-table-widget .table-cell-wrapper.anyrtl-content-ltr {
+  direction: ltr !important;
+  text-align: start !important;
+  unicode-bidi: normal;
+}

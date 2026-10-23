@@ -346,6 +346,30 @@ function protectReadingCode(root, excludeDynamicViews = false) {
     element.style.setProperty("direction", "ltr", "important");
   }
 }
+// Direction of rendered Live Preview table cells must match their inactive view.
+// The active cell editor is handled separately by CodeMirror.
+function applyLivePreviewTableCellDirection(wrapper, mode) {
+  if (mode === "auto" || (mode === "any-rtl" && wrapper.closest(ANY_RTL_EXCLUDED_SELECTOR))) {
+    clearContentDirection(wrapper);
+    return;
+  }
+
+  const direction = mode === "any-rtl"
+    ? detectContentDirection(wrapper.textContent || "") : mode;
+  if (wrapper.getAttribute("dir") !== direction ||
+      wrapper.style.direction !== direction ||
+      !wrapper.classList.contains(direction === "rtl" ? CONTENT_RTL_CLASS : CONTENT_LTR_CLASS)) {
+    setContentDirection(wrapper, direction);
+  }
+}
+
+function applyLivePreviewTableCellDirections(root, mode) {
+  const parentWrapper = root.closest(".cm-table-widget .table-cell-wrapper");
+  if (parentWrapper) applyLivePreviewTableCellDirection(parentWrapper, mode);
+  for (const wrapper of root.querySelectorAll(".cm-table-widget .table-cell-wrapper")) {
+    if (wrapper !== parentWrapper) applyLivePreviewTableCellDirection(wrapper, mode);
+  }
+}
 function markReadingBlockDirections(root, forcedDirection = null) {
   clearReadingBlockDirections(root);
   const blocks = getReadingBlocks(root);
@@ -538,6 +562,9 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
         this.setDocumentDirectionForReadingDiv(element, direction, context.sourcePath);
       } else {
         applyReadingDirection(element, direction);
+        if (element.closest(".cm-table-widget")) {
+          applyLivePreviewTableCellDirections(element, direction);
+        }
       }
     });
     this.addSettingTab(new RtlSettingsTab(this.app, this));
@@ -624,6 +651,7 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
         this.getRequiredFileDirection(view.file)[0];
 
       protectReadingCode(root, mode === "any-rtl");
+      applyLivePreviewTableCellDirections(root, mode);
       const sourceEmbed = root.closest(READING_EMBED_SELECTOR);
 
       for (const title of root.querySelectorAll(
@@ -666,7 +694,7 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
     }
 
     const observer = new Observer(records => {
-      const selector = ".callout-title,.callout-title-inner,pre";
+      const selector = ".callout-title,.callout-title-inner,pre,.cm-table-widget";
       const relevant = records.some(record => {
         const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
         if (target?.closest(selector)) return true;
@@ -702,6 +730,9 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
         if (code.closest(READING_EMBED_SELECTOR) === root.closest(READING_EMBED_SELECTOR)) {
           restoreDirectionState(code);
         }
+      }
+      for (const wrapper of root.querySelectorAll(".cm-table-widget .table-cell-wrapper")) {
+        clearContentDirection(wrapper);
       }
       this.renderedContentObservers.delete(root);
     });
