@@ -57,12 +57,17 @@ function getCodeBlockRanges(state) {
     }
   });
 
+  const nestedRanges = ranges.filter(range => range.nested)
+    .sort((a, b) => a.from - b.from);
+  let nestedIndex = 0;
   // Also protect root-level fences while background parsing is incomplete.
   let fence = null;
   for (let number = 1; number <= doc.lines; number++) {
     const line = doc.line(number);
-    if (ranges.some(range => range.nested &&
-        line.from >= range.from && line.from <= range.to)) continue;
+    while (nestedIndex < nestedRanges.length &&
+        nestedRanges[nestedIndex].to < line.from) nestedIndex++;
+    if (nestedIndex < nestedRanges.length &&
+        line.from >= nestedRanges[nestedIndex].from) continue;
     const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line.text);
     if (!match) continue;
 
@@ -81,7 +86,18 @@ function getCodeBlockRanges(state) {
     }
   }
   if (fence) ranges.push({ from: fence.from, to: doc.length });
-  return ranges;
+
+  ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range.from <= last.to) {
+      last.to = Math.max(last.to, range.to);
+    } else {
+      merged.push({ from: range.from, to: range.to });
+    }
+  }
+  return merged;
 }
 
 
@@ -110,15 +126,18 @@ function getEditorPlugin(rtlPlugin) {
       rtlPlugin.handleIframeEditor(view.dom, view, file, this);
     }
     update(update) {
-      if (update.docChanged || update.viewportChanged ||
-          import_language.syntaxTree(update.startState) !== import_language.syntaxTree(update.state)) {
+      const syntaxChanged = import_language.syntaxTree(update.startState) !==
+        import_language.syntaxTree(update.state);
+      if (update.docChanged || syntaxChanged) {
         this.refreshFrontmatterRange(update.state);
+      }
+      if (update.docChanged || update.viewportChanged || syntaxChanged) {
         this.decorations = this.buildDecorations(update.view);
       }
     }
-    refreshFrontmatterRange(state) {
+    refreshFrontmatterRange(state, refreshCodeBlocks = true) {
       this.frontmatterRange = null;
-      this.codeBlockRanges = getCodeBlockRanges(state);
+      if (refreshCodeBlocks) this.codeBlockRanges = getCodeBlockRanges(state);
       if (this.rtlPlugin.settings.preventRTLFrontmatter && this.checkFrontmatter(state)) {
         this.getFrontmatterRange(state);
       }
@@ -126,14 +145,26 @@ function getEditorPlugin(rtlPlugin) {
     buildDecorations(view) {
       const builder = new import_state.RangeSetBuilder();
       if (!view?.state || !view.viewport) return builder.finish();
+      const ranges = this.codeBlockRanges;
+      let low = 0;
+      let high = ranges.length;
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        if (ranges[mid].to < view.viewport.from) low = mid + 1;
+        else high = mid;
+      }
+      let rangeIndex = low;
       let pos = view.viewport.from;
       while (pos <= view.viewport.to) {
         const line = view.state.doc.lineAt(pos);
         const protectedYaml = this.rtlPlugin.settings.preventRTLFrontmatter &&
           this.frontmatterRange && line.from <= this.frontmatterRange.to;
         let decoration = this.emptyDirDec;
-        const protectedCode = this.codeBlockRanges.some(range =>
-          line.from >= range.from && line.from <= range.to);
+        while (rangeIndex < ranges.length && ranges[rangeIndex].to < line.from) {
+          rangeIndex++;
+        }
+        const protectedCode = rangeIndex < ranges.length &&
+          ranges[rangeIndex].from <= line.from;
         if (protectedCode || protectedYaml || this.direction === "ltr") decoration = this.ltrDec;
         else if (this.direction === "rtl") decoration = this.rtlDec;
         else if (this.direction === "any-rtl") {
@@ -146,7 +177,7 @@ function getEditorPlugin(rtlPlugin) {
     }
     setDirection(direction, view) {
       this.direction = isTextDirection(direction) ? direction : "auto";
-      this.refreshFrontmatterRange(view.state);
+      this.refreshFrontmatterRange(view.state, false);
       this.decorations = this.buildDecorations(view);
     }
     containsRTLCharacter(text) {

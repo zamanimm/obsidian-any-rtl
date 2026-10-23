@@ -51,16 +51,39 @@
   text-align: start;
 }
 
-.callout-title-inner.anyrtl-content-rtl {
-  direction: rtl;
-  text-align: start;
-  unicode-bidi: normal;
+/* Keep callout icons and titles together on the detected text side. */
+.callout-title.anyrtl-content-rtl {
+  direction: rtl !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start !important;
 }
 
-.callout-title-inner.anyrtl-content-ltr {
-  direction: ltr;
-  text-align: start;
+.callout-title.anyrtl-content-ltr {
+  direction: ltr !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start !important;
+}
+
+.callout-title.anyrtl-content-rtl > .callout-title-inner,
+.callout-title-inner.anyrtl-content-rtl {
+  direction: rtl !important;
+  text-align: right !important;
   unicode-bidi: normal;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  margin-inline: 0 !important;
+}
+
+.callout-title.anyrtl-content-ltr > .callout-title-inner,
+.callout-title-inner.anyrtl-content-ltr {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  margin-inline: 0 !important;
 }
 
 /* Raw YAML in the editor */
