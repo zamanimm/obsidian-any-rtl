@@ -270,7 +270,8 @@ var DIRECTION_CLASSES = [
   ANY_RTL_CLASS,
   CONTENT_RTL_CLASS,
   CONTENT_LTR_CLASS,
-  "anyrtl-protect-frontmatter"
+  "anyrtl-protect-frontmatter",
+  "rtl"
 ];
 var ORIGINAL_DIRECTION_STATES = new WeakMap();
 var READING_VIEW_DIRECTIONS = new WeakMap();
@@ -313,6 +314,15 @@ function restoreDirectionState(element) {
 }
 function detectContentDirection(text) {
   return RTL_SCRIPT_PATTERN.test(text) ? "rtl" : "ltr";
+}
+
+// Use the same script-balance check as BiDi Flow Navigator for label styling;
+// the actual inline direction remains first-strong via dir="auto".
+function detectOutlineTextDirection(text) {
+  const rtlCount = (text.match(/[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}\p{Script=Samaritan}\p{Script=Mandaic}]/gu) || []).length;
+  const ltrCount = (text.match(/[a-zA-Z]/g) || []).length;
+  if (rtlCount || ltrCount) return rtlCount >= ltrCount ? "rtl" : "ltr";
+  return detectContentDirection(text);
 }
 function setContentDirection(element, direction) {
   rememberDirectionState(element);
@@ -502,10 +512,6 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
       id: "switch-text-direction",
       name: "Switch text direction",
       icon: "arrow-left-right",
-      hotkeys: [
-        { modifiers: ["Ctrl", "Shift"], key: "ArrowLeft" },
-        { modifiers: ["Ctrl", "Shift"], key: "ArrowRight" }
-      ],
       callback: () => {
         const view = this.app.workspace.getActiveViewOfType(
           import_obsidian3.MarkdownView
@@ -602,8 +608,16 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
     this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => {
       if (leaf?.view instanceof import_obsidian3.MarkdownView) this.updateStatusBar(leaf.view);
       else this.hideStatusBar();
+      this.watchOutlineLeaves();
     }));
-    this.app.workspace.onLayoutReady?.(() => this.refreshAllDirections());
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      this.watchOutlineLeaves();
+    }));
+    this.app.workspace.onLayoutReady?.(() => {
+      this.refreshAllDirections();
+      this.watchOutlineLeaves();
+    });
+    this.watchOutlineLeaves();
     this.updateStatusBar();
   }
 
@@ -642,6 +656,159 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
         "Any-RTL: could not remove the old plugin."
       );
     }
+  }
+
+  // Keep each Outline heading independently bidirectional, including mixed-script punctuation.
+  setOutlineItemDirection(item, direction) {
+    this.outlineOriginalStyles ||= new WeakMap();
+    if (!this.outlineOriginalStyles.has(item)) {
+      this.outlineOriginalStyles.set(item, {
+        textAlign: item.style.getPropertyValue("text-align"),
+        textAlignPriority: item.style.getPropertyPriority("text-align"),
+        unicodeBidi: item.style.getPropertyValue("unicode-bidi"),
+        unicodeBidiPriority: item.style.getPropertyPriority("unicode-bidi")
+      });
+    }
+
+    // Preserve the original inline direction/dir/classes for safe cleanup.
+    rememberDirectionState(item);
+    item.classList.toggle(CONTENT_RTL_CLASS, direction === "rtl");
+    item.classList.toggle(CONTENT_LTR_CLASS, direction === "ltr");
+    item.setAttribute("dir", "auto");
+    item.style.removeProperty("direction");
+    item.style.setProperty("text-align", "start", "important");
+    item.style.setProperty("unicode-bidi", "plaintext", "important");
+  }
+
+  clearOutlineItemDirection(item) {
+    clearContentDirection(item);
+    const original = this.outlineOriginalStyles?.get(item);
+    if (!original) return;
+
+    const restore = (property, value, priority) => {
+      item.style.removeProperty(property);
+      if (value) item.style.setProperty(property, value, priority);
+    };
+    restore("text-align", original.textAlign, original.textAlignPriority);
+    restore("unicode-bidi", original.unicodeBidi, original.unicodeBidiPriority);
+    this.outlineOriginalStyles.delete(item);
+  }
+
+  watchOutlineLeaves() {
+    this.outlineDirectionObservers ||= new Map();
+    const leaves = this.app.workspace.getLeavesOfType("outline");
+    const liveLeaves = new Set(leaves);
+    const selector = ".tree-item-self .tree-item-inner";
+    const getTreeRoot = root => root.matches?.(".view-content")
+      ? root
+      : root.querySelector(".view-content") || root;
+
+    // A leaf or its view-content may be replaced while the plugin remains loaded.
+    for (const [leaf, watcher] of this.outlineDirectionObservers) {
+      const currentRoot = leaf.view?.containerEl;
+      const currentTreeRoot = currentRoot && getTreeRoot(currentRoot);
+      if (liveLeaves.has(leaf) && currentRoot === watcher.root &&
+          currentTreeRoot === watcher.treeRoot) continue;
+
+      watcher.observer?.disconnect();
+      for (const item of watcher.treeRoot.querySelectorAll(selector)) {
+        this.clearOutlineItemDirection(item);
+      }
+      restoreDirectionState(watcher.treeRoot);
+      this.outlineDirectionObservers.delete(leaf);
+    }
+
+    for (const leaf of leaves) {
+      const root = leaf.view?.containerEl;
+      if (!root) continue;
+      const previous = this.outlineDirectionObservers.get(leaf);
+      if (previous) {
+        previous.update();
+        continue;
+      }
+
+      const watcher = {
+        root,
+        treeRoot: getTreeRoot(root),
+        observer: null,
+        update: null
+      };
+
+      const update = () => {
+        const currentTreeRoot = getTreeRoot(root);
+        if (currentTreeRoot !== watcher.treeRoot) {
+          for (const item of watcher.treeRoot.querySelectorAll(selector)) {
+            this.clearOutlineItemDirection(item);
+          }
+          restoreDirectionState(watcher.treeRoot);
+          watcher.treeRoot = currentTreeRoot;
+        }
+
+        const activeFile = this.app.workspace.getActiveFile?.();
+        const mode = activeFile?.path && this.sessionDirections.has(activeFile.path)
+          ? this.sessionDirections.get(activeFile.path)
+          : this.getRequiredFileDirection(activeFile)[0];
+        const items = Array.from(watcher.treeRoot.querySelectorAll(selector));
+
+        // Auto means native Obsidian behavior: remove both tree and label overrides.
+        if (mode === "auto") {
+          restoreDirectionState(watcher.treeRoot);
+          for (const item of items) this.clearOutlineItemDirection(item);
+          return;
+        }
+
+        // RTL and Any-RTL mirror the complete tree; only explicit LTR keeps it left-to-right.
+        const layoutDirection = mode === "rtl"
+          ? "rtl"
+          : mode === "ltr"
+            ? "ltr"
+            : detectOutlineTextDirection(
+                items.map(item => item.textContent || "").join(" ")
+              );
+        rememberDirectionState(watcher.treeRoot);
+        watcher.treeRoot.setAttribute("dir", layoutDirection);
+        watcher.treeRoot.classList.toggle("rtl", layoutDirection === "rtl");
+
+        // dir=auto + unicode-bidi: plaintext keeps every heading independent.
+        for (const item of items) {
+          const direction = detectOutlineTextDirection(item.textContent || "");
+          if (item.getAttribute("dir") !== "auto" ||
+              item.style.getPropertyValue("direction") !== "" ||
+              item.style.getPropertyValue("text-align") !== "start" ||
+              item.style.getPropertyPriority("text-align") !== "important" ||
+              item.style.getPropertyValue("unicode-bidi") !== "plaintext" ||
+              item.style.getPropertyPriority("unicode-bidi") !== "important" ||
+              !item.classList.contains(direction === "rtl"
+                ? CONTENT_RTL_CLASS : CONTENT_LTR_CLASS)) {
+            this.setOutlineItemDirection(item, direction);
+          }
+        }
+      };
+
+      watcher.update = update;
+      // Outline is rebuilt while typing, switching notes or expanding headings.
+      const Observer = root.ownerDocument.defaultView?.MutationObserver;
+      watcher.observer = Observer ? new Observer((records) => {
+        if (records.some(record =>
+          record.type === "childList" || record.type === "characterData")) update();
+      }) : null;
+      watcher.observer?.observe(root, { childList: true, characterData: true, subtree: true });
+      this.outlineDirectionObservers.set(leaf, watcher);
+      update();
+    }
+  }
+
+  stopOutlineObservers() {
+    if (!this.outlineDirectionObservers) return;
+    const selector = ".tree-item-self .tree-item-inner";
+    for (const watcher of this.outlineDirectionObservers.values()) {
+      watcher.observer?.disconnect();
+      for (const item of watcher.treeRoot.querySelectorAll(selector)) {
+        this.clearOutlineItemDirection(item);
+      }
+      restoreDirectionState(watcher.treeRoot);
+    }
+    this.outlineDirectionObservers.clear();
   }
 
   watchRenderedContent(view) {
@@ -758,6 +925,7 @@ const selector = ".callout-content,.callout-title,.callout-title-inner,pre,.cm-t
   }
 
   onunload() {
+    this.stopOutlineObservers();
     this.app.workspace.iterateAllLeaves(leaf => {
       const view = leaf.view;
       if (!(view instanceof import_obsidian3.MarkdownView)) return;
@@ -1016,6 +1184,7 @@ const selector = ".callout-content,.callout-title,.callout-title-inner,pre,.cm-t
       }
     }
     editor?.refresh?.();
+    this.watchOutlineLeaves();
     this.updateStatusBar(view);
   }
   adjustEditorPlugin(editorView, direction, editorPlugin) {

@@ -184,3 +184,28 @@
   text-align: start !important;
   unicode-bidi: normal;
 }
+/* Full RTL layout for Obsidian's native Outline tree. The view toolbar is untouched. */
+.workspace-leaf-content[data-type="outline"] .view-content[dir="rtl"] .tree-item-self {
+  direction: rtl;
+}
+
+/* Obsidian core's .rtl class reverses collapsed chevrons; logical properties mirror guides. */
+.workspace-leaf-content[data-type="outline"] .view-content[dir="rtl"] .tree-item-children {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: 0;
+  padding-inline-start: var(--size-4-2, 8px);
+  padding-inline-end: 0;
+  margin-inline-start: var(--size-4-3, 12px);
+  margin-inline-end: 0;
+  border-inline-start: var(--nav-indentation-guide-width, 1px) solid
+    var(--nav-indentation-guide-color, var(--background-modifier-border));
+  border-inline-end: 0;
+}
+
+/* Each heading uses its own first-strong direction, including mixed-script punctuation. */
+.workspace-leaf-content[data-type="outline"] .tree-item-self .tree-item-inner.anyrtl-content-rtl,
+.workspace-leaf-content[data-type="outline"] .tree-item-self .tree-item-inner.anyrtl-content-ltr {
+  text-align: start;
+  unicode-bidi: plaintext;
+}
