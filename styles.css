@@ -7,6 +7,41 @@
   direction: rtl;
 }
 
+/* Do not let unicode-bidi: plaintext ignore the explicit per-line direction.
+   Avoid bidi-override, which breaks mixed Latin words and caret navigation. */
+.markdown-source-view.mod-cm6.is-live-preview .cm-line[dir="rtl"],
+.markdown-source-view.mod-cm6.is-live-preview .cm-line[dir="ltr"] {
+  unicode-bidi: normal !important;
+}
+
+/* Live Preview edits callout lines as CodeMirror quote lines.
+   The heading is HyperMD-callout; continuation lines are HyperMD-quote. */
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.HyperMD-quote[dir="rtl"],
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.HyperMD-callout[dir="rtl"] {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.HyperMD-quote[dir="ltr"],
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.HyperMD-callout[dir="ltr"] {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Live Preview also uses rendered callout widgets when not being edited.
+   Respect per-block detection, so an English paragraph can remain LTR. */
+.markdown-source-view.mod-cm6.is-live-preview .callout-content.anyrtl-content-rtl,
+.markdown-source-view.mod-cm6.is-live-preview .callout-content > p.anyrtl-content-rtl {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.markdown-source-view.mod-cm6.is-live-preview .callout-content.anyrtl-content-ltr,
+.markdown-source-view.mod-cm6.is-live-preview .callout-content > p.anyrtl-content-ltr {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
 /* Reading direction is assigned by main.js; alignment follows that direction. */
 .markdown-preview-view .anyrtl-content-rtl {
   direction: rtl;
@@ -18,6 +53,22 @@
   direction: ltr;
   text-align: start;
   unicode-bidi: normal;
+}
+
+/* Live Preview renders inactive callouts as nested Markdown blocks.
+   Target paragraphs at every nesting depth, not only direct p children. */
+.markdown-source-view.mod-cm6 .callout-content.anyrtl-content-rtl,
+.markdown-source-view.mod-cm6 .callout-content .anyrtl-content-rtl {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: normal !important;
+}
+
+.markdown-source-view.mod-cm6 .callout-content.anyrtl-content-ltr,
+.markdown-source-view.mod-cm6 .callout-content .anyrtl-content-ltr {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
 }
 
 /* Keep code and interface/metadata outside content direction detection. */
@@ -115,6 +166,20 @@
 }
 
 .markdown-source-view.mod-cm6 .cm-table-widget .table-cell-wrapper.anyrtl-content-ltr {
+  direction: ltr !important;
+  text-align: start !important;
+  unicode-bidi: normal;
+}
+/* Any-RTL: callout body direction in Reading View and Live Preview. */
+:is(.markdown-preview-view, .markdown-source-view.mod-cm6)
+  .callout-content.anyrtl-content-rtl {
+  direction: rtl !important;
+  text-align: start !important;
+  unicode-bidi: normal;
+}
+
+:is(.markdown-preview-view, .markdown-source-view.mod-cm6)
+  .callout-content.anyrtl-content-ltr {
   direction: ltr !important;
   text-align: start !important;
   unicode-bidi: normal;

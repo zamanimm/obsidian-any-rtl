@@ -143,7 +143,12 @@ function getEditorPlugin(rtlPlugin) {
     constructor(view) {
       this.view = view;
       this.rtlPlugin = rtlPlugin;
-      this.rtlDec = import_view.Decoration.line({ attributes: { dir: "rtl" } });
+      this.rtlDec = import_view.Decoration.line({
+        attributes: {
+          dir: "rtl",
+          style: "direction: rtl !important; text-align: right !important;"
+        }
+      });
       this.ltrDec = import_view.Decoration.line({
         attributes: {
           dir: "ltr",
@@ -185,6 +190,8 @@ function getEditorPlugin(rtlPlugin) {
     buildDecorations(view) {
       const builder = new import_state.RangeSetBuilder();
       if (!view?.state || !view.viewport) return builder.finish();
+      // Auto delegates entirely to native Obsidian detection.
+      if (this.direction === "auto") return builder.finish();
       const ranges = this.codeBlockRanges;
       let low = 0;
       let high = ranges.length;
@@ -249,7 +256,7 @@ var ANY_RTL_CLASS = "is-any-rtl";
 
 // MarkdownPostProcessor.ts
 
-var READING_BLOCK_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,dt,dd,th,td,summary,figcaption,blockquote,.callout-title,.callout-title-inner";
+var READING_BLOCK_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,dt,dd,th,td,summary,figcaption,blockquote,.callout-content,.callout-title,.callout-title-inner";
 var READING_EMBED_SELECTOR = ".markdown-embed,.internal-embed";
 var EXCLUDED_READING_CONTAINER_SELECTOR = "pre,.math,.metadata-container,.mod-header,.mod-footer";
 var ANY_RTL_EXCLUDED_SELECTOR = ".block-language-dataview,.block-language-dataviewjs,.dataview,.block-language-base,.bases-embed,.bases-view";
@@ -551,7 +558,8 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
       if (view?.editor) this.switchDocumentDirection(view.editor, view);
     });
     this.editorPlugin = getEditorPlugin(this);
-    this.registerEditorExtension(import_state2.Prec.lowest(this.editorPlugin));
+      // Any-RTL must win over Obsidian's first-strong-character line detection.
+      this.registerEditorExtension(import_state2.Prec.highest(this.editorPlugin));
     this.registerMarkdownPostProcessor((element, context) => {
       const preview = element.closest(".markdown-preview-view");
       const current = preview && READING_VIEW_DIRECTIONS.get(preview);
@@ -654,6 +662,13 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
       applyLivePreviewTableCellDirections(root, mode);
       const sourceEmbed = root.closest(READING_EMBED_SELECTOR);
 
+      // Explicitly set the base direction of callout bodies.
+      // Child paragraphs are processed independently to preserve mixed directions.
+      for (const content of root.querySelectorAll(".callout-content")) {
+        if (content.closest(READING_EMBED_SELECTOR) !== sourceEmbed) continue;
+        applyReadingDirection(content, mode);
+      }
+
       for (const title of root.querySelectorAll(
         ".callout-title,.callout-title-inner"
       )) {
@@ -694,7 +709,7 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
     }
 
     const observer = new Observer(records => {
-      const selector = ".callout-title,.callout-title-inner,pre,.cm-table-widget";
+const selector = ".callout-content,.callout-title,.callout-title-inner,pre,.cm-table-widget";
       const relevant = records.some(record => {
         const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
         if (target?.closest(selector)) return true;
@@ -714,6 +729,8 @@ var RtlPlugin = class extends import_obsidian3.Plugin {
 
     this.register(() => {
       observer.disconnect();
+
+      clearReadingBlockDirections(root);
 
       for (const title of root.querySelectorAll(
         ".callout-title,.callout-title-inner"
